@@ -12,10 +12,36 @@ app.use(express.json());
 
 app.post('/charge', async (req, res) => {
   try {
-    const chargeResult = await chargeAPI(req.body);
+    // Prepare the request body for Midtrans
+    const requestBody = {
+      transaction_details: {
+        order_id: req.body.order_id,  // Ensure this comes from the client
+        gross_amount: req.body.gross_amount, // Ensure this comes from the client
+      },
+      customer_details: {
+        first_name: req.body.name,       // Customer name
+        email: req.body.email || 'customer@example.com', // Set default email if not provided
+        phone: req.body.phone,            // Customer phone
+        shipping_address: {
+          address: req.body.address,      // Customer address
+        },
+      },
+      item_details: req.body.cartItems.map(item => ({
+        id: item.productId,               // Product ID
+        price: item.price,                 // Product price
+        quantity: item.quantity,           // Product quantity
+        name: item.productName,           // Product name
+      })),
+      credit_card: {
+        secure: true,
+      },
+    };
+
+    const chargeResult = await chargeAPI(requestBody);
     res.status(chargeResult.status).json(chargeResult.data);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to charge' });
+    console.error('Error charging:', error);
+    res.status(500).json({ error: 'Failed to charge', details: error.message });
   }
 });
 
